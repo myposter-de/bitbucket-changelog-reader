@@ -22,7 +22,9 @@ Additional options
 
  - `-m | --excludeMerges`
  - `-o | --outputText`
+ - `-d | --removeDuplicateMessages`
  - `-s | --since {commit-id}`
  - `-u | --until {commit-id}`
  - `-f | --tagFrom {tag-name}`
  - `-t | --tagTo {tag-name}`
+ - `-n | --numberOfResults {e.g. 200, default 100}`
