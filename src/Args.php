@@ -4,6 +4,8 @@ namespace App;
 
 class Args
 {
+    const DEFAULT_NUMBER_OF_RESULTS = '100';
+
     private $args;
 
     public function __construct(array $args)
@@ -49,5 +51,15 @@ class Args
     public function outputText(): bool
     {
         return isset($this->args['outputText']) || isset($this->args['o']);
+    }
+
+    public function removeDuplicateMessages(): bool
+    {
+        return isset($this->args['removeDuplicateMessages']) || isset($this->args['d']);
+    }
+
+    public function numberOfResults(): string
+    {
+        return $this->args['numberOfResults'] ?? $this->args['n'] ?? self::DEFAULT_NUMBER_OF_RESULTS;
     }
 }

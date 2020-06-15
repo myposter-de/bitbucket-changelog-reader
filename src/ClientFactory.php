@@ -5,7 +5,8 @@ namespace App;
 class ClientFactory
 {
     public static function create(
-        Env $env
+        Env $env,
+        Args $args
     ): Client
     {
         return new Client(
@@ -16,7 +17,8 @@ class ClientFactory
                 ]
             ),
             $env->username(),
-            $env->password()
+            $env->password(),
+            $args
         );
     }
 }

@@ -8,9 +8,6 @@ use Psr\Http\Message\ResponseInterface;
 class Client
 {
     const BASE_URI = '/rest/api/1.0';
-    const OUTPUT_DEFAULT = self::OUTPUT_JSON;
-    const OUTPUT_JSON = 'json';
-    const OUTPUT_TEXT = 'text';
 
     /**
      * api keys
@@ -33,90 +30,30 @@ class Client
 
     private $password;
 
-    private $project;
-
-    private $repo;
-
-    private $since;
-
-    private $until;
+    private $args;
 
     private $errors = [];
 
-    private $excludeMerges = false;
+    private $until;
 
-    private $output = self::OUTPUT_JSON;
+    private $since;
 
-    private $tagFrom;
-
-    private $tagTo;
-
-    public function __construct(ClientInterface $client, string $username, string $password)
+    public function __construct(
+        ClientInterface $client,
+        string $username,
+        string $password,
+        Args $args
+    )
     {
         $this->client = $client;
         $this->username = $username;
         $this->password = $password;
-    }
-
-    public function project(string $project): self
-    {
-        $this->project = $project;
-
-        return $this;
-    }
-
-    public function repo(string $repo): self
-    {
-        $this->repo = $repo;
-
-        return $this;
-    }
-
-    public function excludeMerges(bool $excludeMerges = false): self
-    {
-        $this->excludeMerges = $excludeMerges;
-
-        return $this;
-    }
-
-    public function since(string $commitId): self
-    {
-        $this->since = $commitId;
-
-        return $this;
-    }
-
-    public function until(string $commitId): self
-    {
-        $this->until = $commitId;
-
-        return $this;
-    }
-
-    public function tagFrom(string $tagFrom): self
-    {
-        $this->tagFrom = $tagFrom;
-
-        return $this;
-    }
-
-    public function tagTo(string $tagTo): self
-    {
-        $this->tagTo = $tagTo;
-
-        return $this;
-    }
-
-    public function outputText(bool $outputText = false): self
-    {
-        $this->output = $outputText ? self::OUTPUT_TEXT : self::OUTPUT_DEFAULT;
-
-        return $this;
+        $this->args = $args;
     }
 
     public function result(): string
     {
-        if (! $this->valid()) {
+        if (!$this->valid()) {
             return $this->errors();
         }
 
@@ -138,11 +75,11 @@ class Client
 
     public function valid(): bool
     {
-        if (is_null($this->project) || $this->project === '') {
+        if ($this->isEmpty($this->args->project())) {
             $this->errors[] = 'set a project (->project())';
         }
 
-        if (is_null($this->repo) || $this->repo === '') {
+        if ($this->isEmpty($this->args->repo())) {
             $this->errors[] = 'set a repo (->repo())';
         }
 
@@ -179,16 +116,24 @@ class Client
         }
 
         foreach ($response[self::VALUES] as $commit) {
+            if ($this->args->removeDuplicateMessages()) {
+                if (in_array(
+                    $commit[self::MESSAGE],
+                    $result[$commit[self::COMMITTER][self::USER_ID]][self::COMMITS]
+                )) {
+                    continue;
+                }
+            }
+
             $result[$commit[self::COMMITTER][self::USER_ID]][self::COMMITS][] = $commit[self::MESSAGE];
         }
-
 
         return $result;
     }
 
     private function output(array $formattedResponse): string
     {
-        if ($this->output === self::OUTPUT_TEXT) {
+        if ($this->args->outputText()) {
             return $this->formatToText($formattedResponse);
         }
 
@@ -234,56 +179,60 @@ class Client
         return sprintf(
             '%s/projects/%s/repos/%s/%s',
             self::BASE_URI,
-            $this->project,
-            $this->repo,
+            $this->args->project(),
+            $this->args->repo(),
             $resource
         );
     }
 
     private function resolveTagFromToCommit(): void
     {
-        if (is_null($this->tagFrom) || $this->tagFrom === '') {
+        if (is_null($this->args->tagFrom()) || $this->args->tagFrom() === '') {
             return;
         }
 
         $tagFromResponse = $this->request(
-            $this->endpoint('tags/') . rawurldecode($this->tagFrom)
+            $this->endpoint('tags/') . rawurldecode($this->args->tagFrom())
         );
 
         $tagFromResponse = json_decode($tagFromResponse->getBody(), true);
 
-        $this->since = $tagFromResponse['latestCommit'] ?? $this->since;
+        $this->since = $tagFromResponse['latestCommit'] ?? $this->args->since();
     }
 
     private function resolveTagToToCommit(): void
     {
-        if (is_null($this->tagTo) || $this->tagTo === '') {
+        if (is_null($this->args->tagTo()) || $this->args->tagTo() === '') {
             return;
         }
 
         $tagToResponse = $this->request(
-            $this->endpoint('tags/') . rawurldecode($this->tagTo)
+            $this->endpoint('tags/') . rawurldecode($this->args->tagTo())
         );
 
         $tagToResponse = json_decode($tagToResponse->getBody(), true);
 
-        $this->until = $tagToResponse['latestCommit'] ?? $this->until;
+        $this->until = $tagToResponse['latestCommit'] ?? $this->args->until();
     }
 
     private function queryParams(): string
     {
         $params = [];
 
-        if ($this->excludeMerges) {
+        if ($this->args->excludeMerges()) {
             $params[] = 'merges=exclude';
         }
 
-        if (! is_null($this->since) || $this->since !== '') {
+        if (!$this->isEmpty($this->since)) {
             $params[] = 'since=' . $this->since;
         }
 
-        if (! is_null($this->until) || $this->until !== '') {
+        if (!$this->isEmpty($this->until)) {
             $params[] = 'until=' . $this->until;
+        }
+
+        if (!$this->isEmpty($this->args->numberOfResults())) {
+            $params[] = 'limit=' . $this->args->numberOfResults();
         }
 
         if ($params === []) {
@@ -293,16 +242,16 @@ class Client
         return '?' . implode('&', $params);
     }
 
+    private function isEmpty($value): bool
+    {
+        return is_null($value) || $value === '';
+    }
+
     private function reset()
     {
         $this->errors = [];
-        $this->repo = null;
-        $this->project = null;
-        $this->excludeMerges = false;
+        $this->args = null;
         $this->since = null;
         $this->until = null;
-        $this->tagFrom = null;
-        $this->tagTo = null;
-        $this->output = self::OUTPUT_JSON;
     }
 }

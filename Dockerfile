@@ -9,15 +9,15 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
 RUN mkdir /app
 WORKDIR /app
 
+# Add entrypoint script
+COPY ./docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # install dependencies
 COPY composer.json composer.lock /app/
 RUN composer install --prefer-dist --no-dev --optimize-autoloader
 
 # copy relevant directories
 COPY src /app/src
-
-# Add entrypoint script
-COPY ./docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

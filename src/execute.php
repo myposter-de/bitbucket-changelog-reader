@@ -14,7 +14,7 @@ if (! $env->valid()) {
 }
 
 $options = getopt(
-    "p:r:s:u:f:t:om",
+    "p:r:s:u:f:t:n:omd",
     [
         'project:',
         'repo:',
@@ -22,26 +22,16 @@ $options = getopt(
         'until:',
         'tagFrom:',
         'tagTo:',
+        'numberOfResults:',
         'excludeMerges',
         'outputText',
+        'removeDuplicateMessages',
     ]
 );
 
-$args = new Args($options);
-
-$client = ClientFactory::create($env);
+$client = ClientFactory::create($env, new Args($options));
 
 try {
-    $client
-        ->project($args->project())
-        ->repo($args->repo())
-        ->excludeMerges($args->excludeMerges())
-        ->since($args->since())
-        ->until($args->until())
-        ->tagFrom($args->tagFrom())
-        ->tagTo($args->tagTo())
-        ->outputText($args->outputText());
-
     if (! $client->valid()) {
         echo $client->errors();
         exit(1);
@@ -49,6 +39,6 @@ try {
 
     echo $client->result();
 } catch (Throwable $t) {
-    echo $t->getMessage();
+    echo '[ERROR]' . $t->getMessage();
     exit(1);
 }
