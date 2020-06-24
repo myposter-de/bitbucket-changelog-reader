@@ -8,6 +8,13 @@ class Env
     const USERNAME = 'USERNAME';
     const PASSWORD = 'PASSWORD';
 
+    /**
+     * fallback to jenkins agent variables
+     */
+    const JENKINS = 'JENKINS';
+    const GIT_AUTH_USR = 'GIT_AUTH_USR';
+    const GIT_AUTH_PSW = 'GIT_AUTH_PSW';
+
     private $errors = [];
 
     public function valid()
@@ -39,11 +46,27 @@ class Env
 
     public function username()
     {
-        return $_ENV[self::USERNAME] ?? '';
+        $username = $_ENV[self::USERNAME] ?? '';
+
+        if ($username === '') {
+            if (isset($_ENV[self::JENKINS])) {
+                $username = $_ENV[self::GIT_AUTH_USR] ?? '';
+            }
+        }
+
+        return $username;
     }
 
     public function password()
     {
-        return $_ENV[self::PASSWORD] ?? '';
+        $password = $_ENV[self::PASSWORD] ?? '';
+
+        if ($password === '') {
+            if (isset($_ENV[self::JENKINS])) {
+                $password = $_ENV[self::GIT_AUTH_PSW] ?? '';
+            }
+        }
+
+        return $password;
     }
 }
